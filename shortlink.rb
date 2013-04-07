@@ -15,8 +15,29 @@ migration "Create 'tokens' table" do
   end
 end
 
+migration "Create 'hits' table" do
+  database.create_table :hits do
+    primary_key :id
+    foreign_key :token_id, :tokens, null: false
+    column :access_time, DateTime, null: false
+    column :user_agent, String, text: true
+    column :user_ip, String
+    column :referer, String, text: true
+
+    index [:token_id, :user_agent]
+    index [:token_id, :referer]
+  end
+end
+
 get "/:token" do
   record = database[:tokens].first!("token = ?", params[:token])
+  database[:hits].insert({
+    token_id: record[:id],
+    access_time: Time.now,
+    user_agent: request.user_agent,
+    user_ip: request.ip,
+    referer: request.referer
+  })
   redirect record[:url]
 end
 
@@ -26,7 +47,8 @@ get "/:token/info" do
   return JSON.dump({
     token: record[:token],
     shortlink: url("/#{record[:token]}"),
-    url: record[:url]
+    url: record[:url],
+    hit_count: database[:hits].where("token_id = ?", record[:id]).count
   })
 end
 
