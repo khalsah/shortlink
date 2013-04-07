@@ -3,6 +3,7 @@ require "sinatra/sequel"
 require "json"
 
 set :database, "sqlite://shortlinks.db"
+set :token_length, 3
 
 migration "Create 'tokens' table" do
   database.create_table :tokens do
@@ -57,7 +58,7 @@ post "/" do
   token = nil
   database.transaction do
     while token.nil? || database[:tokens].first("token = ?", token)
-      token = rand(36 ** 4).to_s(36).rjust(4, "0")
+      token = rand(36 ** settings.token_length).to_s(36).rjust(settings.token_length, "0")
     end
     database[:tokens].insert(token: token, url: url)
   end
